@@ -470,11 +470,11 @@ function parseCSV(url) {
 
 async function loadAll() {
   const [gdpRaw, infRaw, debtRaw, unempRaw, excRaw] = await Promise.all([
-    parseCSV('data/gdp_growth.csv'),
-    parseCSV('data/inflation_rate.csv'),
-    parseCSV('data/government_debt.csv'),
-    parseCSV('data/unemployment.csv'),
-    parseCSV('data/exchange_rates_current.csv')
+    parseCSV('gdp_growth.csv'),
+    parseCSV('inflation_rate.csv'),
+    parseCSV('government_debt.csv'),
+    parseCSV('unemployment.csv'),
+    parseCSV('exchange_rates_current.csv')
   ]);
 
   const clean = (arr, dateFn) =>
