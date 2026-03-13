@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>România — Tablou de Bord Economic | CDBG</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.plot.ly/plotly-2.27.0.min.js" charset="utf-8"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <style>
+    :root {
+      --purple:      #8c52ff;
+      --purple-dark: #5e35b1;
+      --purple-bg:   #f5f0ff;
+      --black:       #111111;
+      --text:        #1a1a2e;
+      --muted:       #6b7280;
+      --border:      #e8e0ff;
+      --white:       #ffffff;
+      --shadow:      0 4px 16px rgba(140,82,255,0.10);
+      --radius:      12px;
+      --font:        'Montserrat','Helvetica Neue',Arial,sans-serif;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: var(--font); background: var(--white); color: var(--text); line-height: 1.6; }
+
+    /* HEADER */
+    header {
+      background: var(--purple);
+      color: #fff;
+      padding: 20px 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .header-brand { display: flex; align-items: center; gap: 16px; }
+    .header-logo {
+      width: 48px; height: 48px; border-radius: 50%;
+      background: rgba(255,255,255,0.2);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 900; font-size: 13px; letter-spacing: -0.5px; flex-shrink: 0;
+    }
+    .header-title h1 { font-size: 20px; font-weight: 800; letter-spacing: -0.5px; line-height: 1.2; }
+    .header-title span { font-size: 11px; font-weight: 500; opacity: 0.8; letter-spacing: 1px; text-transform: uppercase; }
+    .header-meta { font-size: 12px; opacity: 0.8; text-align: right; }
+
+    /* TABS */
+    .tabs-wrapper {
+      position: sticky; top: 0; z-index: 100;
+      background: var(--white);
+      border-bottom: 2px solid var(--border);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    .tabs-nav {
+      display: flex; overflow-x: auto; padding: 0 40px;
+      scrollbar-width: none;
+    }
+    .tabs-nav::-webkit-scrollbar { display: none; }
+    .tab-btn {
+      background: none; border: none;
+      padding: 15px 18px;
+      font-family: var(--font); font-size: 13px; font-weight: 600;
+      color: var(--muted); cursor: pointer; white-space: nowrap;
+      border-bottom: 3px solid transparent; margin-bottom: -2px;
+      transition: color .2s;
+    }
+    .tab-btn:hover { color: var(--purple); }
+    .tab-btn.active { color: var(--purple); border-bottom-color: var(--purple); }
+
+    /* MAIN */
+    main { max-width: 1280px; margin: 0 auto; padding: 40px; }
+    .section { display: none; }
+    .section.active { display: block; }
+
+    /* SECTION HEADER */
+    .section-header { margin-bottom: 28px; }
+    .section-divider { width: 48px; height: 4px; background: var(--purple); border-radius: 2px; margin-bottom: 10px; }
+    .section-header h2 { font-size: 26px; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 4px; }
+    .section-header p { color: var(--muted); font-size: 14px; font-weight: 500; }
+
+    /* KPI CARDS */
+    .kpi-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 20px; margin-bottom: 32px; }
+    .kpi-card {
+      background: var(--white); border-radius: var(--radius);
+      padding: 24px; box-shadow: var(--shadow);
+      border-left: 4px solid var(--purple); overflow: hidden; position: relative;
+    }
+    .kpi-card::after {
+      content: ''; position: absolute; top: -20px; right: -20px;
+      width: 80px; height: 80px; border-radius: 50%; background: var(--purple-bg);
+    }
+    .kpi-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 8px; position: relative; }
+    .kpi-value { font-size: 34px; font-weight: 800; line-height: 1; margin-bottom: 6px; position: relative; }
+    .kpi-sub { font-size: 12px; color: var(--muted); font-weight: 500; position: relative; }
+    .kpi-period { font-size: 11px; color: var(--muted); opacity: 0.7; margin-top: 4px; position: relative; }
+    .trend-up   { color: #10b981; font-size: 14px; margin-left: 4px; }
+    .trend-down { color: #ef4444; font-size: 14px; margin-left: 4px; }
+
+    /* CHART CARDS */
+    .charts-grid   { display: grid; gap: 24px; }
+    .charts-grid-2 { grid-template-columns: 1fr 1fr; }
+    .chart-card {
+      background: var(--white); border-radius: var(--radius);
+      box-shadow: var(--shadow); padding: 28px;
+      border: 1px solid var(--border);
+    }
+    .chart-card h3 { font-size: 15px; font-weight: 700; margin-bottom: 2px; }
+    .chart-source  { font-size: 11px; color: var(--muted); font-style: italic; margin-bottom: 16px; }
+
+    /* EXCHANGE */
+    .exchange-kpi { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; margin-bottom: 24px; }
+    .exchange-card { background: var(--purple); color: #fff; border-radius: var(--radius); padding: 20px 22px; }
+    .exchange-currency { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; opacity: 0.8; margin-bottom: 4px; }
+    .exchange-value { font-size: 28px; font-weight: 800; }
+    .exchange-label { font-size: 11px; opacity: 0.7; margin-top: 2px; }
+
+    /* TABLE */
+    .table-controls { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+    .table-select {
+      font-family: var(--font); font-size: 13px; font-weight: 600;
+      padding: 10px 14px; border: 2px solid var(--border); border-radius: 8px;
+      background: var(--white); color: var(--text); cursor: pointer; outline: none;
+    }
+    .table-select:focus { border-color: var(--purple); }
+    .btn-dl {
+      font-family: var(--font); font-size: 13px; font-weight: 700;
+      padding: 10px 20px; background: var(--purple); color: #fff;
+      border: none; border-radius: 8px; cursor: pointer; transition: background .2s;
+    }
+    .btn-dl:hover { background: var(--purple-dark); }
+    .table-wrap { overflow-x: auto; border-radius: var(--radius); border: 1px solid var(--border); }
+    .data-tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .data-tbl th {
+      background: var(--purple-bg); color: var(--text); font-weight: 700;
+      padding: 11px 16px; text-align: left; font-size: 11px;
+      text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap;
+    }
+    .data-tbl td { padding: 9px 16px; border-bottom: 1px solid var(--border); }
+    .data-tbl tbody tr:last-child td { border-bottom: none; }
+    .data-tbl tbody tr:hover { background: #faf7ff; }
+    .pagination { display: flex; align-items: center; gap: 6px; margin-top: 14px; font-size: 13px; color: var(--muted); flex-wrap: wrap; }
+    .pg-btn {
+      font-family: var(--font); padding: 5px 11px; border: 1px solid var(--border);
+      background: var(--white); border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600;
+    }
+    .pg-btn:hover, .pg-btn.active { background: var(--purple); color: #fff; border-color: var(--purple); }
+    .pg-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    /* ABOUT */
+    .about-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 28px; }
+    .about-card { background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow); padding: 28px; border: 1px solid var(--border); margin-bottom: 24px; }
+    .about-card:last-child { margin-bottom: 0; }
+    .about-card h3 { font-size: 17px; font-weight: 800; margin-bottom: 14px; }
+    .about-card p  { font-size: 14px; color: var(--muted); margin-bottom: 10px; line-height: 1.7; }
+    .about-card ul { list-style: none; font-size: 13px; color: var(--muted); }
+    .about-card ul li { padding: 7px 0; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+    .about-card ul li:last-child { border-bottom: none; }
+    .about-card ul li::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--purple); flex-shrink: 0; }
+    .brand-card { background: var(--purple); color: #fff; border-radius: var(--radius); padding: 32px; text-align: center; margin-bottom: 24px; }
+    .brand-circle { width: 72px; height: 72px; border-radius: 50%; background: rgba(255,255,255,0.2); margin: 0 auto 18px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 900; }
+    .brand-card h3 { font-size: 17px; font-weight: 800; margin-bottom: 8px; }
+    .brand-card p  { font-size: 13px; opacity: 0.85; line-height: 1.7; }
+    .brand-card a  { color: #fff; font-weight: 700; }
+
+    /* LOADING */
+    .loading { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 200px; gap: 14px; color: var(--muted); }
+    .spinner { width: 36px; height: 36px; border: 4px solid var(--border); border-top-color: var(--purple); border-radius: 50%; animation: spin .7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* FOOTER */
+    footer { background: var(--text); color: rgba(255,255,255,0.65); padding: 28px 40px; text-align: center; font-size: 13px; margin-top: 60px; }
+    footer strong { color: #fff; }
+    footer a { color: #c49dff; text-decoration: none; }
+
+    /* RESPONSIVE */
+    @media (max-width: 900px) {
+      header { padding: 16px 20px; }
+      main { padding: 24px 20px; }
+      .tabs-nav { padding: 0 20px; }
+      .kpi-grid { grid-template-columns: repeat(2,1fr); }
+      .charts-grid-2 { grid-template-columns: 1fr; }
+      .exchange-kpi { grid-template-columns: repeat(2,1fr); }
+      .about-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 500px) {
+      .kpi-grid { grid-template-columns: 1fr; }
+      .exchange-kpi { grid-template-columns: 1fr 1fr; }
+      .header-meta { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="header-brand">
+    <div class="header-logo">CDBG</div>
+    <div class="header-title">
+      <h1>Tablou de Bord Economic</h1>
+      <span>România · Centrul pentru Democrație și Bună Guvernare</span>
+    </div>
+  </div>
+  <div class="header-meta">
+    Date actualizate: <strong id="hdr-date">—</strong>
+  </div>
+</header>
+
+<!-- TABS -->
+<div class="tabs-wrapper">
+  <nav class="tabs-nav">
+    <button class="tab-btn active" data-tab="overview">Prezentare Generală</button>
+    <button class="tab-btn" data-tab="gdp">PIB &amp; Creștere</button>
+    <button class="tab-btn" data-tab="inflation">Inflație</button>
+    <button class="tab-btn" data-tab="budget">Buget &amp; Fiscal</button>
+    <button class="tab-btn" data-tab="labour">Piața Muncii</button>
+    <button class="tab-btn" data-tab="exchange">Curs Valutar</button>
+    <button class="tab-btn" data-tab="data">Date Brute</button>
+    <button class="tab-btn" data-tab="about">Despre</button>
+  </nav>
+</div>
+
+<main>
+
+  <!-- OVERVIEW -->
+  <section id="section-overview" class="section active">
+    <div class="section-header">
+      <div class="section-divider"></div>
+      <h2>Indicatori Macroeconomici</h2>
+      <p>Principalii indicatori economici ai României, din surse oficiale Eurostat și BNR</p>
+    </div>
+    <div class="kpi-grid" id="kpi-grid">
+      <div class="kpi-card"><div class="loading"><div class="spinner"></div></div></div>
+      <div class="kpi-card"><div class="loading"><div class="spinner"></div></div></div>
+      <div class="kpi-card"><div class="loading"><div class="spinner"></div></div></div>
+      <div class="kpi-card"><div class="loading"><div class="spinner"></div></div></div>
+    </div>
+    <div class="charts-grid charts-grid-2">
+      <div class="chart-card">
+        <h3>Rata de Creștere a PIB (Trimestrial)</h3>
+        <div class="chart-source">Sursa: Eurostat (namq_10_gdp)</div>
+        <div id="ch-ov-gdp"></div>
+      </div>
+      <div class="chart-card">
+        <h3>Rata Inflației (HICP — variație anuală)</h3>
+        <div class="chart-source">Sursa: Eurostat (prc_hicp_manr)</div>
+        <div id="ch-ov-inf"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- GDP -->
+  <section id="section-gdp" class="section">
+    <div class="section-header">
+      <div class="section-divider"></div>
+      <h2>PIB &amp; Creștere Economică</h2>
+      <p>Variație procentuală trimestrială, ajustat sezonier și calendaristic</p>
+    </div>
+    <div class="charts-grid">
+      <div class="chart-card">
+        <h3>Creștere PIB — Trimestrial (%)</h3>
+        <div class="chart-source">Sursa: Eurostat (namq_10_gdp) — volume înlănțuite, variație față de trimestrul precedent</div>
+        <div id="ch-gdp"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- INFLATION -->
+  <section id="section-inflation" class="section">
+    <div class="section-header">
+      <div class="section-divider"></div>
+      <h2>Inflație</h2>
+      <p>Indicele Armonizat al Prețurilor de Consum (IAPC)</p>
+    </div>
+    <div class="charts-grid">
+      <div class="chart-card">
+        <h3>Rata Inflației IAPC — Variație Anuală (%)</h3>
+        <div class="chart-source">Sursa: Eurostat (prc_hicp_manr) — toate categoriile</div>
+        <div id="ch-inf"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- BUDGET -->
+  <section id="section-budget" class="section">
+    <div class="section-header">
+      <div class="section-divider"></div>
+      <h2>Buget &amp; Politică Fiscală</h2>
+      <p>Datoria publică consolidată a administrației generale</p>
+    </div>
+    <div class="charts-grid">
+      <div class="chart-card">
+        <h3>Datoria Publică (% din PIB)</h3>
+        <div class="chart-source">Sursa: Eurostat (gov_10dd_edpt1) — datoria brută consolidată a administrației publice</div>
+        <div id="ch-debt"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- LABOUR -->
+  <section id="section-labour" class="section">
+    <div class="section-header">
+      <div class="section-divider"></div>
+      <h2>Piața Muncii</h2>
+      <p>Rata șomajului, date lunare ajustate sezonier</p>
+    </div>
+    <div class="charts-grid">
+      <div class="chart-card">
+        <h3>Rata Șomajului — 15–74 ani, ajustat sezonier (%)</h3>
+        <div class="chart-source">Sursa: Eurostat (une_rt_m)</div>
+        <div id="ch-unemp"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- EXCHANGE -->
+  <section id="section-exchange" class="section">
+    <div class="section-header">
+      <div class="section-divider"></div>
+      <h2>Cursuri de Schimb</h2>
+      <p>Cursuri oficiale BNR — <span id="exc-date">—</span></p>
+    </div>
+    <div class="exchange-kpi" id="exc-kpi"></div>
+    <div class="charts-grid" style="margin-bottom:24px">
+      <div class="chart-card">
+        <h3>Principalele Cursuri de Schimb (RON)</h3>
+        <div class="chart-source">Sursa: Banca Națională a României (BNR)</div>
+        <div id="ch-exc"></div>
+      </div>
+    </div>
+    <div class="chart-card">
+      <h3>Toate Cursurile BNR</h3>
+      <div class="table-wrap" style="margin-top:16px">
+        <table class="data-tbl" id="exc-tbl">
+          <thead><tr><th>Valută</th><th>Curs (RON)</th><th>Data</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- DATA -->
+  <section id="section-data" class="section">
+    <div class="section-header">
+      <div class="section-divider"></div>
+      <h2>Date Brute</h2>
+      <p>Explorați și descărcați datele în format CSV</p>
+    </div>
+    <div class="chart-card">
+      <div class="table-controls">
+        <select class="table-select" id="ds-select">
+          <option value="gdp_growth">Creștere PIB (Trimestrial)</option>
+          <option value="inflation">Rata Inflației (Lunar)</option>
+          <option value="debt">Datoria Publică (Anual)</option>
+          <option value="unemployment">Rata Șomajului (Lunar)</option>
+          <option value="exchange">Cursuri de Schimb</option>
+        </select>
+        <button class="btn-dl" id="dl-btn">↓ Descarcă CSV</button>
+      </div>
+      <div class="table-wrap">
+        <table class="data-tbl">
+          <thead id="dt-head"></thead>
+          <tbody id="dt-body"></tbody>
+        </table>
+      </div>
+      <div class="pagination" id="dt-pag"></div>
+    </div>
+  </section>
+
+  <!-- ABOUT -->
+  <section id="section-about" class="section">
+    <div class="section-header">
+      <div class="section-divider"></div>
+      <h2>Despre Acest Proiect</h2>
+    </div>
+    <div class="about-grid">
+      <div>
+        <div class="about-card">
+          <h3>Descriere</h3>
+          <p>Tabloul de bord prezintă principalii indicatori macroeconomici ai României: produsul intern brut, inflația, finanțele publice și piața muncii.</p>
+          <p>Datele sunt preluate automat din bazele de date oficiale Eurostat și BNR prin scriptul <code>data_fetch.R</code>, salvate ca fișiere CSV și afișate interactiv pe această pagină.</p>
+          <p>Versiunea web este statică și poate fi găzduită pe GitHub Pages fără server. Pentru actualizări, rulați scriptul R și re-publicați fișierele CSV.</p>
+        </div>
+        <div class="about-card">
+          <h3>Surse de Date</h3>
+          <ul>
+            <li><strong>Eurostat</strong> — PIB: namq_10_gdp, nama_10_gdp, nama_10_pc</li>
+            <li><strong>Eurostat</strong> — Inflație: prc_hicp_manr, prc_hicp_midx</li>
+            <li><strong>Eurostat</strong> — Finanțe publice: gov_10dd_edpt1, gov_10q_ggnfa</li>
+            <li><strong>Eurostat</strong> — Piața muncii: une_rt_m, lfsi_emp_a</li>
+            <li><strong>BNR</strong> — Cursuri de schimb: bnr.ro/nbrfxrates.xml</li>
+          </ul>
+        </div>
+      </div>
+      <div>
+        <div class="brand-card">
+          <div class="brand-circle">CDBG</div>
+          <h3>Centrul pentru Democrație și Bună Guvernare</h3>
+          <p style="margin-top:10px">Un proiect al <strong>CDBG / Politică la Minut</strong></p>
+          <p style="margin-top:6px"><a href="https://cdbg.ro" target="_blank" rel="noopener">cdbg.ro →</a></p>
+        </div>
+        <div class="about-card">
+          <h3>Tehnologie</h3>
+          <ul>
+            <li>R + Shiny (dashboard server interactiv)</li>
+            <li>Plotly.js (vizualizări interactive web)</li>
+            <li>Papa Parse (parsare CSV client-side)</li>
+            <li>GitHub Pages (găzduire statică)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <p><strong>Tablou de Bord Economic — România</strong> &nbsp;·&nbsp;
+     Un proiect al <a href="https://cdbg.ro" target="_blank" rel="noopener">Centrului pentru Democrație și Bună Guvernare (CDBG)</a>
+  </p>
+  <p style="margin-top:8px">Date: Eurostat &amp; Banca Națională a României (BNR) &nbsp;·&nbsp; Actualizat periodic</p>
+</footer>
+
+<script>
+// ─────────────────────────────────────────────
+// CONFIG
+// ─────────────────────────────────────────────
+const C = {
+  purple:      '#8c52ff',
+  purpleDark:  '#5e35b1',
+  purpleAlpha: 'rgba(140,82,255,0.10)',
+  green:       '#10b981',
+  red:         '#ef4444',
+  amber:       '#f59e0b',
+  teal:        '#0ea5e9',
+  muted:       '#9ca3af'
+};
+
+const BASE_LAYOUT = {
+  font: { family: "'Montserrat','Helvetica Neue',Arial,sans-serif", size: 12, color: '#374151' },
+  paper_bgcolor: '#ffffff',
+  plot_bgcolor:  '#fafafa',
+  margin: { t: 16, r: 16, b: 50, l: 60 },
+  xaxis: { gridcolor: '#e8e0ff', linecolor: '#d1c7f0', zeroline: false },
+  yaxis: { gridcolor: '#e8e0ff', linecolor: '#d1c7f0', zeroline: false },
+  hovermode: 'x unified',
+  hoverlabel: {
+    bgcolor: '#1a1a2e', bordercolor: '#8c52ff',
+    font: { family: "'Montserrat',sans-serif", size: 12, color: '#ffffff' }
+  }
+};
+
+const CFG = { responsive: true, displayModeBar: false };
+
+// ─────────────────────────────────────────────
+// DATA STORE
+// ─────────────────────────────────────────────
+const D = {};
+
+function parseCSV(url) {
+  return new Promise(resolve => {
+    Papa.parse(url, {
+      download: true, header: true, dynamicTyping: true, skipEmptyLines: true,
+      complete: r => resolve(r.data)
+    });
+  });
+}
+
+async function loadAll() {
+  const [gdpRaw, infRaw, debtRaw, unempRaw, excRaw] = await Promise.all([
+    parseCSV('data/gdp_growth.csv'),
+    parseCSV('data/inflation_rate.csv'),
+    parseCSV('data/government_debt.csv'),
+    parseCSV('data/unemployment.csv'),
+    parseCSV('data/exchange_rates_current.csv')
+  ]);
+
+  const clean = (arr, dateFn) =>
+    arr.filter(r => r.values !== null && r.values !== 'NA' && !isNaN(r.values))
+       .map(r => ({ date: dateFn(r.time), value: +r.values }))
+       .sort((a, b) => a.date.localeCompare(b.date));
+
+  D.gdp        = clean(gdpRaw,   t => t);
+  D.inflation  = clean(infRaw,   t => t);
+  D.debt       = clean(debtRaw,  t => String(t).substring(0, 4));
+  D.unemployment = clean(unempRaw, t => t);
+  D.exchange   = excRaw.filter(r => r.currency && r.rate).sort((a,b) => a.currency.localeCompare(b.currency));
+
+  D.ready = true;
+
+  const excDate = D.exchange[0]?.date ?? '—';
+  document.getElementById('hdr-date').textContent = excDate;
+  document.getElementById('exc-date').textContent = excDate;
+
+  renderOverview();
+  rendered.overview = true;
+
+  // hook data tab change
+  document.getElementById('ds-select').addEventListener('change', () => { pg = 1; renderDataTable(); });
+  document.getElementById('dl-btn').addEventListener('click', downloadCSV);
+}
+
+// ─────────────────────────────────────────────
+// TABS
+// ─────────────────────────────────────────────
+const rendered = {};
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    btn.classList.add('active');
+    const tab = btn.dataset.tab;
+    document.getElementById('section-' + tab).classList.add('active');
+    if (!rendered[tab] && D.ready) { rendered[tab] = true; RENDERS[tab]?.(); }
+  });
+});
+
+const RENDERS = {
+  gdp:      renderGDP,
+  inflation: renderInflation,
+  budget:   renderBudget,
+  labour:   renderLabour,
+  exchange: renderExchange,
+  data:     renderDataTab
+};
+
+// ─────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────
+const last  = arr => arr[arr.length - 1];
+const tail  = (arr, n) => arr.slice(Math.max(0, arr.length - n));
+const fmt   = (v, d=1) => v == null ? 'N/A' : v.toFixed(d) + '%';
+
+function trendSpan(v) {
+  if (v == null) return '';
+  return v >= 0
+    ? `<span class="trend-up">▲</span>`
+    : `<span class="trend-down">▼</span>`;
+}
+
+// ─────────────────────────────────────────────
+// OVERVIEW
+// ─────────────────────────────────────────────
+function renderOverview() {
+  renderKPI();
+
+  const gdpData = tail(D.gdp, 40);
+  Plotly.newPlot('ch-ov-gdp', [{
+    x: gdpData.map(d => d.date), y: gdpData.map(d => d.value),
+    type: 'bar',
+    marker: { color: gdpData.map(d => d.value >= 0 ? C.green : C.red), opacity: 0.85 },
+    hovertemplate: '%{x}: <b>%{y:.2f}%</b><extra></extra>'
+  }], { ...BASE_LAYOUT, height: 270, yaxis: { ...BASE_LAYOUT.yaxis, title: '% (trim/trim)' } }, CFG);
+
+  const infData = tail(D.inflation, 60);
+  const xEnds   = [infData[0]?.date, infData[infData.length - 1]?.date];
+  Plotly.newPlot('ch-ov-inf', [
+    {
+      x: infData.map(d => d.date), y: infData.map(d => d.value),
+      type: 'scatter', mode: 'lines', fill: 'tozeroy',
+      fillcolor: C.purpleAlpha, line: { color: C.purple, width: 2 },
+      hovertemplate: '%{x}: <b>%{y:.1f}%</b><extra></extra>'
+    },
+    {
+      x: xEnds, y: [2, 2], type: 'scatter', mode: 'lines',
+      line: { color: C.green, width: 1.5, dash: 'dash' }, hoverinfo: 'skip', showlegend: false
+    }
+  ], { ...BASE_LAYOUT, height: 270, showlegend: false, yaxis: { ...BASE_LAYOUT.yaxis, title: '% (variație anuală)' } }, CFG);
+}
+
+function renderKPI() {
+  const g = last(D.gdp);
+  const i = last(D.inflation);
+  const u = last(D.unemployment);
+  const d = last(D.debt);
+
+  const cards = [
+    {
+      label: 'Creștere PIB', value: fmt(g?.value, 2), sub: 'Trim/Trim, ajustat sezonier',
+      period: g?.date, trend: g?.value,
+      border: g && g.value >= 0 ? C.green : C.red
+    },
+    {
+      label: 'Inflație HICP', value: fmt(i?.value), sub: 'Variație anuală',
+      period: i?.date, trend: null,
+      border: i && i.value > 3 ? C.red : C.amber
+    },
+    {
+      label: 'Rata Șomajului', value: fmt(u?.value), sub: '15–74 ani, ajustat sezonier',
+      period: u?.date, trend: u ? -u.value : null,
+      border: C.purple
+    },
+    {
+      label: 'Datoria Publică', value: fmt(d?.value), sub: '% din PIB',
+      period: d?.date, trend: null,
+      border: d && d.value > 60 ? C.red : C.teal
+    }
+  ];
+
+  document.getElementById('kpi-grid').innerHTML = cards.map(c => `
+    <div class="kpi-card" style="border-left-color:${c.border}">
+      <div class="kpi-label">${c.label}</div>
+      <div class="kpi-value">${c.value}${trendSpan(c.trend)}</div>
+      <div class="kpi-sub">${c.sub}</div>
+      <div class="kpi-period">${c.period ?? ''}</div>
+    </div>
+  `).join('');
+}
+
+// ─────────────────────────────────────────────
+// GDP
+// ─────────────────────────────────────────────
+function renderGDP() {
+  Plotly.newPlot('ch-gdp', [{
+    x: D.gdp.map(d => d.date), y: D.gdp.map(d => d.value),
+    type: 'bar',
+    marker: { color: D.gdp.map(d => d.value >= 0 ? C.green : C.red), opacity: 0.85 },
+    hovertemplate: '%{x}: <b>%{y:.2f}%</b><extra></extra>'
+  }], {
+    ...BASE_LAYOUT, height: 420,
+    yaxis: { ...BASE_LAYOUT.yaxis, title: '% (trimestru/trimestru)', zeroline: true, zerolinecolor: '#374151', zerolinewidth: 1 }
+  }, CFG);
+}
+
+// ─────────────────────────────────────────────
+// INFLATION
+// ─────────────────────────────────────────────
+function renderInflation() {
+  const xEnds = [D.inflation[0]?.date, last(D.inflation)?.date];
+  Plotly.newPlot('ch-inf', [
+    {
+      x: D.inflation.map(d => d.date), y: D.inflation.map(d => d.value),
+      type: 'scatter', mode: 'lines', fill: 'tozeroy',
+      fillcolor: C.purpleAlpha, line: { color: C.purple, width: 2 },
+      name: 'Inflație HICP',
+      hovertemplate: '%{x}: <b>%{y:.1f}%</b><extra></extra>'
+    },
+    {
+      x: xEnds, y: [2, 2], type: 'scatter', mode: 'lines',
+      line: { color: C.green, width: 1.5, dash: 'dash' },
+      name: 'Țintă BCE (2%)', hoverinfo: 'skip'
+    }
+  ], {
+    ...BASE_LAYOUT, height: 420, showlegend: true,
+    legend: { x: 0.02, y: 0.98, font: { size: 11 } },
+    yaxis: { ...BASE_LAYOUT.yaxis, title: '% (variație anuală)' }
+  }, CFG);
+}
+
+// ─────────────────────────────────────────────
+// BUDGET
+// ─────────────────────────────────────────────
+function renderBudget() {
+  const xEnds = [D.debt[0]?.date, last(D.debt)?.date];
+  Plotly.newPlot('ch-debt', [
+    {
+      x: D.debt.map(d => d.date), y: D.debt.map(d => d.value),
+      type: 'bar', marker: { color: C.purple, opacity: 0.85 },
+      hovertemplate: '%{x}: <b>%{y:.1f}%</b> din PIB<extra></extra>'
+    },
+    {
+      x: xEnds, y: [60, 60], type: 'scatter', mode: 'lines',
+      line: { color: C.red, width: 2, dash: 'dash' },
+      name: 'Criteriu Maastricht (60%)', hoverinfo: 'skip'
+    }
+  ], {
+    ...BASE_LAYOUT, height: 420, showlegend: true,
+    legend: { x: 0.02, y: 0.98, font: { size: 11 } },
+    yaxis: { ...BASE_LAYOUT.yaxis, title: '% din PIB' }
+  }, CFG);
+}
+
+// ─────────────────────────────────────────────
+// LABOUR
+// ─────────────────────────────────────────────
+function renderLabour() {
+  Plotly.newPlot('ch-unemp', [{
+    x: D.unemployment.map(d => d.date), y: D.unemployment.map(d => d.value),
+    type: 'scatter', mode: 'lines', fill: 'tozeroy',
+    fillcolor: C.purpleAlpha, line: { color: C.purple, width: 2 },
+    hovertemplate: '%{x}: <b>%{y:.1f}%</b><extra></extra>'
+  }], {
+    ...BASE_LAYOUT, height: 420,
+    yaxis: { ...BASE_LAYOUT.yaxis, title: '% din populația activă', rangemode: 'tozero' }
+  }, CFG);
+}
+
+// ─────────────────────────────────────────────
+// EXCHANGE RATES
+// ─────────────────────────────────────────────
+function renderExchange() {
+  // KPI cards
+  const majors = ['EUR','USD','GBP','CHF'].map(c => D.exchange.find(r => r.currency === c)).filter(Boolean);
+  document.getElementById('exc-kpi').innerHTML = majors.map(r => `
+    <div class="exchange-card">
+      <div class="exchange-currency">${r.currency} / RON</div>
+      <div class="exchange-value">${r.rate.toFixed(4)}</div>
+      <div class="exchange-label">1 ${r.currency} = ${r.rate.toFixed(4)} RON</div>
+    </div>
+  `).join('');
+
+  // Bar chart — top currencies by rate (exclude gold XAU/XDR which skew scale)
+  const chartCurrencies = ['EUR','USD','GBP','CHF','JPY','SEK','NOK','DKK','HUF','PLN','CZK','MDL','AUD','CAD','NZD','SGD','MYR'];
+  const chartData = chartCurrencies.map(c => D.exchange.find(r => r.currency === c)).filter(Boolean);
+
+  Plotly.newPlot('ch-exc', [{
+    x: chartData.map(r => r.currency),
+    y: chartData.map(r => r.rate),
+    type: 'bar',
+    marker: { color: C.purple, opacity: 0.85 },
+    text: chartData.map(r => r.rate.toFixed(4)),
+    textposition: 'outside',
+    hovertemplate: '<b>%{x}</b>: %{y:.4f} RON<extra></extra>'
+  }], {
+    ...BASE_LAYOUT, height: 340,
+    yaxis: { ...BASE_LAYOUT.yaxis, title: 'RON', rangemode: 'tozero' }
+  }, CFG);
+
+  // Full table
+  document.querySelector('#exc-tbl tbody').innerHTML = D.exchange.map(r => `
+    <tr>
+      <td><strong>${r.currency}</strong></td>
+      <td>${r.rate?.toFixed(4) ?? '—'}</td>
+      <td>${r.date}</td>
+    </tr>
+  `).join('');
+}
+
+// ─────────────────────────────────────────────
+// DATA TABLE
+// ─────────────────────────────────────────────
+let pg = 1;
+const PG_SIZE = 25;
+
+function renderDataTab() {
+  renderDataTable();
+}
+
+function getTableData() {
+  const sel = document.getElementById('ds-select').value;
+  switch (sel) {
+    case 'gdp_growth':   return { h: ['Data','Creștere PIB (%)'],          rows: [...D.gdp].reverse().map(d => [d.date, d.value.toFixed(2)]) };
+    case 'inflation':    return { h: ['Data','Inflație HICP (%)'],          rows: [...D.inflation].reverse().map(d => [d.date, d.value.toFixed(1)]) };
+    case 'debt':         return { h: ['An','Datorie Publică (% PIB)'],      rows: [...D.debt].reverse().map(d => [d.date, d.value.toFixed(1)]) };
+    case 'unemployment': return { h: ['Data','Rata Șomajului (%)'],         rows: [...D.unemployment].reverse().map(d => [d.date, d.value.toFixed(1)]) };
+    case 'exchange':     return { h: ['Valută','Curs (RON)','Data'],        rows: D.exchange.map(r => [r.currency, r.rate?.toFixed(4) ?? '—', r.date]) };
+    default: return { h: [], rows: [] };
+  }
+}
+
+function renderDataTable() {
+  const { h, rows } = getTableData();
+  document.getElementById('dt-head').innerHTML = '<tr>' + h.map(x => `<th>${x}</th>`).join('') + '</tr>';
+
+  const pageRows = rows.slice((pg - 1) * PG_SIZE, pg * PG_SIZE);
+  document.getElementById('dt-body').innerHTML = pageRows.map(r =>
+    '<tr>' + r.map(c => `<td>${c}</td>`).join('') + '</tr>'
+  ).join('');
+
+  renderPag(rows.length);
+}
+
+function renderPag(total) {
+  const totalPg = Math.ceil(total / PG_SIZE);
+  if (totalPg <= 1) { document.getElementById('dt-pag').innerHTML = ''; return; }
+
+  let html = `<span>${total} înregistrări</span>`;
+  html += `<button class="pg-btn" onclick="goPage(${pg-1})" ${pg===1?'disabled':''}>‹</button>`;
+  for (let i = 1; i <= Math.min(totalPg, 8); i++)
+    html += `<button class="pg-btn ${i===pg?'active':''}" onclick="goPage(${i})">${i}</button>`;
+  if (totalPg > 8) html += `<span>… ${totalPg}</span>`;
+  html += `<button class="pg-btn" onclick="goPage(${pg+1})" ${pg===totalPg?'disabled':''}>›</button>`;
+  document.getElementById('dt-pag').innerHTML = html;
+}
+
+function goPage(p) { pg = p; renderDataTable(); }
+
+function downloadCSV() {
+  const { h, rows } = getTableData();
+  const csv = [h, ...rows].map(r => r.join(',')).join('\n');
+  const a   = Object.assign(document.createElement('a'), {
+    href: URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' })),
+    download: `romania_${document.getElementById('ds-select').value}_${new Date().toISOString().slice(0,10)}.csv`
+  });
+  a.click();
+}
+
+// ─────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────
+loadAll();
+</script>
+</body>
+</html>
